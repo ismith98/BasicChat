@@ -1,0 +1,91 @@
+<!doctype html>
+<!--Get the links from getbootstrap.com-->
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css" integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706tWS" crossorigin="anonymous">
+<script src="https://code.jquery.com/jquery-3.3.1.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.6/umd/popper.min.js" integrity="sha384-wHAiFfRlMFy6i5SRaxvfOCifBUQy1xHdJ/yoi7FRNXMRBu5WHdZYu1hA6ZOblgut" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js" integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv9k" crossorigin="anonymous"></script>
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+    span.hidden {
+        display:none;
+    }
+</style>
+
+<div class = "container">
+    <br>
+    <div class = "jumbotron">
+        <h1 class = "display-4"> Send Message </h1>
+        <br>
+        <input class = "form-control" id="name" placeholder="Name">
+        <br>
+        <textArea class = "form-control" id="message" placeholder="Message"></textArea>
+        <span class="hidden" id=typing>Someone is typing</span>
+        <br>
+        <button id="send" class = "btn btn-success">Send</button>
+    </div>
+    <div id="messages">
+
+    </div>
+</div>
+<script>
+    //This initialization will also try to make a connection 
+    //to the Socket.IO server at the same URL that the 
+    //current page is being hosted on.
+    var socket = io();
+    var theTimeout;
+    socket.on("typing", (chat_name) => {
+        console.log('got typing', chat_name)
+        if (theTimeout){clearTimeout(theTimeout);}
+        if(chat_name.name.length > 0) {
+            $("#typing").text(`${chat_name.name} is typing`);
+        } else {
+            $("#typing").text(`<p>Someone is typing</p>`);
+        }
+        $("#typing").css("display", "inline");
+        theTimeout = setTimeout(() => {
+            $("#typing").css("display", "inline").fadeOut("fast");
+        }, 1500)
+    })
+    //Shorthand for document ready event function: $()
+    //This is to prevent any jQuery code from running... 
+    //before the document is finished loading (is ready).
+    //instead of $().ready( () => {
+    $( () => {
+        $("#send").click(() => {
+            var message = {name: $("#name").val(), message: $("#message").val()};
+            postMessage(message);
+        } )
+        $("#message").keypress(() => {
+            var chat_name = {name:$("#name").val()};
+            postTyping(chat_name);
+        })
+        getMessages();
+    })
+
+    socket.on("message", addMessages)
+
+    //Display message to the browser
+    function addMessages(message) {
+        //Back tick allows you format strings cleanly. (Template literals)
+        $("#messages").append(`<h4> ${message.name} </h4> <p> ${message.message} </p>`);
+    }
+
+    function getMessages() {
+        //In order to use $.get I had to delete the integrity of the jquery script
+        $.get("http://localhost:3000/messages", (data) => {
+            data.forEach(addMessages);
+        })
+    }
+
+    function postMessage(message) {
+        //In order to use $.get I had to delete the integrity of the jquery script
+        $.post("http://localhost:3000/messages", message);
+
+    }
+
+    function postTyping(name) {
+        // $.post("http://localhost:3000/typing", name);
+        socket.emit('typing', name)
+    }
+</script>
